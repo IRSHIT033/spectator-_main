@@ -2,9 +2,9 @@ package bootstrap
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
+
 	"spectator.main/internals/mongo"
 )
 
@@ -12,18 +12,9 @@ func NewMongoDatabase(config *Config) mongo.Client {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	dbHost := config.DBHost
-	dbPort := config.DBPort
-	dbUser := config.DBUser
-	dbPass := config.DBPass
+	MongoURI := config.MongoURI
 
-	mongodbURI := fmt.Sprintf("mongodb://%s:%s@%s:%s", dbUser, dbPass, dbHost, dbPort)
-
-	if dbUser == "" || dbPass == "" {
-		mongodbURI = fmt.Sprintf("mongodb://%s:%s", dbHost, dbPort)
-	}
-     
-	client, err := mongo.NewClient(ctx,mongodbURI)
+	client, err := mongo.NewClient(ctx,MongoURI)
 	if err != nil {
 		log.Fatal(err)
 	}
