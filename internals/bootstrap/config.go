@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-type Env struct {
+type Config struct {
 	AppEnv                 string `mapstructure:"APP_ENV"`
 	ServerAddress          string `mapstructure:"SERVER_ADDRESS"`
 	ContextTimeout         int    `mapstructure:"CONTEXT_TIMEOUT"`
@@ -21,8 +21,8 @@ type Env struct {
 	RefreshTokenSecret     string `mapstructure:"REFRESH_TOKEN_SECRET"`
 }
 
-func NewEnv() *Env {
-	env := Env{}
+func InitConfig() *Config {
+	cnfg := Config{}
 	viper.SetConfigFile(".env")
 
 	err := viper.ReadInConfig()
@@ -30,14 +30,14 @@ func NewEnv() *Env {
 		log.Fatal("Can't find the file .env : ", err)
 	}
 
-	err = viper.Unmarshal(&env)
+	err = viper.Unmarshal(&cnfg)
 	if err != nil {
 		log.Fatal("Environment can't be loaded: ", err)
 	}
 
-	if env.AppEnv == "development" {
+	if cnfg.AppEnv == "development" {
 		log.Println("The App is running in development env")
 	}
 
-	return &env
+	return &cnfg
 }

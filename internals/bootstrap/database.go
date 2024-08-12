@@ -8,14 +8,14 @@ import (
 	"spectator.main/internals/mongo"
 )
 
-func NewMongoDatabase(env *Env) mongo.Client {
+func NewMongoDatabase(config *Config) mongo.Client {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	dbHost := env.DBHost
-	dbPort := env.DBPort
-	dbUser := env.DBUser
-	dbPass := env.DBPass
+	dbHost := config.DBHost
+	dbPort := config.DBPort
+	dbUser := config.DBUser
+	dbPass := config.DBPass
 
 	mongodbURI := fmt.Sprintf("mongodb://%s:%s@%s:%s", dbUser, dbPass, dbHost, dbPort)
 

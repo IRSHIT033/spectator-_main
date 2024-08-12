@@ -3,14 +3,14 @@ package bootstrap
 import "spectator.main/internals/mongo"
 
 type Application struct {
-	Env   *Env
+	Config   *Config
 	Mongo mongo.Client
 }
 
 func App() Application {
 	app := &Application{}
-	app.Env = NewEnv()
-	app.Mongo = NewMongoDatabase(app.Env)
+	app.Config = InitConfig()
+	app.Mongo = NewMongoDatabase(app.Config)
 	return *app
 }
 
