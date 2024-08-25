@@ -3,12 +3,15 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/robfig/cron/v3"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"spectator.main/domain"
+	"spectator.main/rabbitmq"
+
 )
 
 type CheckLogRepository struct {
@@ -23,7 +26,6 @@ func (c *CheckLogRepository) InsertOne(ctx context.Context, u *domain.CheckLog) 
 
 	u.ID = primitive.NewObjectID()
 	u.CreatedAt = time.Now()
-
 
 	res, err := c.checkLogRepo.InsertOne(ctx, u)
 	if err != nil {
@@ -42,6 +44,20 @@ func pingURL(url string) (Duration time.Duration, status any, error error) {
 	}
 
 	latency := time.Since(start)
+	conn, err := connectToRabbitMQ()
+	if err != nil {
+		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
+	}
+	defer conn.Close()
+	message := fmt.Sprintf("Ping to %s took %v, status: %d", url, duration, status)
+	routingKey := "ping/server_name"
+
+	err = publishMessage(conn, routingKey, message)
+	if err != nil {
+		log.Fatalf("Failed to publish message: %v", err)
+	}else {
+	fmt.Println("Ping failed, no message published.")
+}
 	return latency, resp.StatusCode, nil
 }
 func NewCheckLog(u domain.CheckLogRepository, to time.Duration) domain.CheckLogUsecase {
@@ -58,7 +74,7 @@ func NewCheckLog(u domain.CheckLogRepository, to time.Duration) domain.CheckLogU
 // 		if err != nil {
 // 			return
 // 		}
-// 		// Save the result to the database
+// 		
 // 		checkLog := domain.CheckLog{
 // 			UrlRegionID:    1,
 // 			ResponseTime:   latency,
