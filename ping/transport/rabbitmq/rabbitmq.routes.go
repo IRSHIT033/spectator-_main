@@ -5,7 +5,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
-func connectToRabbitMQ() (*amqp.Connection, error) {
+func ConnectToRabbitMQ() (*amqp.Connection, error) {
 	conn, err := amqp.Dial("amqps://aetsgqau:ud_T9i0rUzPfJp2heU_9XkVayu8PjTEg@lionfish.rmq.cloudamqp.com/aetsgqau")
 	if err != nil {
 		return nil, err
@@ -13,7 +13,7 @@ func connectToRabbitMQ() (*amqp.Connection, error) {
 	return conn, nil
 }
 
-func publishMessage(conn *amqp.Connection, routingKey string, message string) error {
+func PublishMessage(conn *amqp.Connection, routingKey string, message string) error {
 	channel, err := conn.Channel()
 	if err != nil {
 		return err

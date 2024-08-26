@@ -3,15 +3,11 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
-	"github.com/robfig/cron/v3"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"spectator.main/domain"
-	"spectator.main/rabbitmq"
-
 )
 
 type CheckLogRepository struct {
@@ -21,6 +17,7 @@ type CheckLogRepository struct {
 
 // InsertOne implements domain.CheckLogUsecase.
 func (c *CheckLogRepository) InsertOne(ctx context.Context, u *domain.CheckLog) (*domain.CheckLog, error) {
+	
 	ctx, cancel := context.WithTimeout(ctx, c.contextTimeout)
 	defer cancel()
 
@@ -28,6 +25,7 @@ func (c *CheckLogRepository) InsertOne(ctx context.Context, u *domain.CheckLog) 
 	u.CreatedAt = time.Now()
 
 	res, err := c.checkLogRepo.InsertOne(ctx, u)
+	fmt.Print("RESPONSEEEEEEEEEEEEEEEEEEEEEEEEEE",res)
 	if err != nil {
 		return res, err
 	}
@@ -35,54 +33,44 @@ func (c *CheckLogRepository) InsertOne(ctx context.Context, u *domain.CheckLog) 
 	return res, nil
 }
 
-func pingURL(url string) (Duration time.Duration, status any, error error) {
+// PingURL pings the given URL and inserts the latency and status into the database.
+func (c *CheckLogRepository) PingURL(ctx context.Context) (*domain.Response, error) {
+	
 	start := time.Now()
+	url := "http://example.com"
+	urlRegionID := 1
 
 	resp, err := http.Get(url)
 	if err != nil {
-		return 0, 400, err
+		return nil, err
 	}
+	defer resp.Body.Close()
 
 	latency := time.Since(start)
-	conn, err := connectToRabbitMQ()
-	if err != nil {
-		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
+ 
+	checkLog := &domain.CheckLog{
+		UrlRegionID:    urlRegionID,
+		ResponseTime:   latency,
+		ResponseStatus: resp.StatusCode,
 	}
-	defer conn.Close()
-	message := fmt.Sprintf("Ping to %s took %v, status: %d", url, duration, status)
-	routingKey := "ping/server_name"
+	fmt.Printf("STARTEDDDDDDDDDDDDDDDDDDDDDDDDD");
+	_, err = c.InsertOne(ctx, checkLog)
 
-	err = publishMessage(conn, routingKey, message)
+	fmt.Printf("INSERTEDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD");
 	if err != nil {
-		log.Fatalf("Failed to publish message: %v", err)
-	}else {
-	fmt.Println("Ping failed, no message published.")
+		fmt.Printf("ERRRORRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR");
+		return nil, err
+	}
+
+	return &domain.Response{
+		Latency: latency,
+		Status:  resp.StatusCode,
+	}, nil
 }
-	return latency, resp.StatusCode, nil
-}
+
 func NewCheckLog(u domain.CheckLogRepository, to time.Duration) domain.CheckLogUsecase {
 	return &CheckLogRepository{
 		checkLogRepo:   u,
 		contextTimeout: to,
 	}
 }
-
-// func NewCheckLogUsecase() {
-// 	c := cron.New()
-// 	c.AddFunc("* * * * *", func() {
-// 		latency, status, err := pingURL("https://example.com/")
-// 		if err != nil {
-// 			return
-// 		}
-// 		
-// 		checkLog := domain.CheckLog{
-// 			UrlRegionID:    1,
-// 			ResponseTime:   latency,
-// 			ResponseStatus: status,
-// 		}
-		
-
-// 	})
-// 	c.Start()
-// 	select {}
-// }

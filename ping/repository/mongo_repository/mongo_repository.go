@@ -2,12 +2,6 @@ package checkLogRepo
 
 import (
 	"context"
-	"fmt"
-	"time"
-
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"spectator.main/domain"
 	"spectator.main/internals/mongo"
 )

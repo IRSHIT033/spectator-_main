@@ -1,33 +1,37 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/robfig/cron"
+	"spectator.main/domain"
 	"spectator.main/internals/bootstrap"
-	rabbitm "spectator.main/ping/rabbitmq"
 	_checkLogRepo "spectator.main/ping/repository/mongo_repository"
-	_checkLogUsecase "spectator.main/ping/usecase"
+	rabbitmq "spectator.main/ping/transport/rabbitmq"
+	"spectator.main/ping/usecase"
 	_userRepo "spectator.main/user/repository/mongo_repository"
 	_userHandler "spectator.main/user/transport/http"
 	_userUsecase "spectator.main/user/usecase"
 )
-func schedulePingJob() {
-	
+func schedulePingJob(_checkLogUsecase domain.CheckLogUsecase) {
 	c := cron.New()
 
-	   _, err := c.AddFunc("@every 4m", func() {
-		url := "http://example.com" 
-		duration, status, err := _checkLogUsecase.PingURL(url)
+	err := c.AddFunc("1 * * * * *", func() {
+		ctx := context.Background()
+
+
+		response, err :=  _checkLogUsecase.PingURL(ctx)
 		if err != nil {
-			
 			fmt.Printf("Error pinging URL: %v\n", err)
 			return
 		}
+		duration := response.Latency
+		status := response.Status
 
-		fmt.Printf("Pinged %s in %v, status: %d\n", url, duration, status)
+		fmt.Printf("Pinged URL in %v, status: %d\n", duration, status)
 
 		conn, err := rabbitmq.ConnectToRabbitMQ()
 		if err != nil {
@@ -37,7 +41,7 @@ func schedulePingJob() {
 		defer conn.Close()
 
 		if status == 200 {
-			message := fmt.Sprintf("Ping to %s took %v, status: %d", url, duration, status)
+			message := fmt.Sprintf("Ping took %v, status: %d", duration, status)
 			routingKey := "ping/server_name"
 
 			err = rabbitmq.PublishMessage(conn, routingKey, message)
@@ -50,14 +54,19 @@ func schedulePingJob() {
 			fmt.Println("Ping failed, no message published.")
 		}
 	})
+
 	if err != nil {
 		fmt.Printf("Failed to schedule ping job: %v\n", err)
 		return
 	}
 
-	
 	c.Start()
 }
+
+
+
+
+
 func main() {
 
 	app := bootstrap.App()
@@ -67,9 +76,9 @@ func main() {
 	router := gin.Default()
 
 	gin.SetMode(gin.DebugMode)
-
-	timeoutContext := time.Duration(config.ContextTimeout) * time.Second
-
+   
+	timeoutContext := time.Duration(12) * time.Second
+     fmt.Println("TIMEOUT",timeoutContext)
 	database := app.Mongo.Database(config.DBname)
 
 	ginRouter := router.Group("api/v1")
@@ -77,8 +86,10 @@ func main() {
 	userRepo := _userRepo.NewMongoRepository(database)
 	userUseCase := _userUsecase.NewUserUsecase(userRepo, timeoutContext)
 	_userHandler.NewUserHandler(ginRouter, userUseCase)
-	 _checkLogRepo.NewMongoRepository(database)
-	
+	mongoRepo:=_checkLogRepo.NewMongoRepository(database)
+	_newLogUsecase := usecase.NewCheckLog(mongoRepo, 10*time.Second)
+
+	schedulePingJob(_newLogUsecase)
 
 	router.Run(":8080")
 }
